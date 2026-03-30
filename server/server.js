@@ -34,23 +34,14 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later'
 });
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.CLIENT_URL
-];
+const cors = require("cors");
 
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
+  origin: true, // 🔥 allow all origins dynamically
   credentials: true
 }));
 
-// ✅ Handle preflight requests
+// ✅ VERY IMPORTANT: handle preflight
 app.options("*", cors());
 // app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json());
