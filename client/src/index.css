@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+* {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply antialiased bg-[#f4f8f5] text-slate-900;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.2);
+  color: #0f172a;
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.66) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 28px 80px -38px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(20px);
+}
+
+.mesh-surface {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.22), transparent 30%),
+    radial-gradient(circle at 82% 16%, rgba(245, 158, 11, 0.18), transparent 24%),
+    radial-gradient(circle at 56% 82%, rgba(14, 165, 233, 0.18), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 253, 244, 0.78) 100%);
+}
+
+.float-slow {
+  animation: float-slow 16s ease-in-out infinite;
+}
+
+.float-medium {
+  animation: float-medium 11s ease-in-out infinite;
+}
+
+.float-delay {
+  animation-delay: -4s;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Line clamp utility */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -18px, 0);
+  }
+}
+
+@keyframes float-medium {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -12px, 0);
+  }
+}
