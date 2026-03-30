@@ -34,8 +34,6 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later'
 });
 
-const cors = require("cors");
-
 app.use(cors({
   origin: true, // 🔥 allow all origins dynamically
   credentials: true
