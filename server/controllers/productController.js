@@ -1,9 +1,6 @@
 const Product = require('../models/Product');
-const fs = require('fs');
-const path = require('path');
 
 const DEFAULT_PAGE_SIZE = 12;
-const PRODUCT_UPLOAD_PREFIX = '/uploads/products/';
 
 const toTrimmedString = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -46,35 +43,11 @@ const buildUploadedImagePaths = (files = []) =>
     new Set(
       files
         .map((file) =>
-          file?.filename ? `${PRODUCT_UPLOAD_PREFIX}${file.filename}` : '',
+          file?.buffer ? `data:${file.mimetype};base64,${file.buffer.toString('base64')}` : '',
         )
         .filter(Boolean),
     ),
   );
-
-const isLocalProductUpload = (filePath) =>
-  typeof filePath === 'string' && filePath.startsWith(PRODUCT_UPLOAD_PREFIX);
-
-const toLocalUploadPath = (filePath) =>
-  path.join(__dirname, '..', ...filePath.replace(/^\/+/, '').split('/'));
-
-const deleteLocalProductImages = async (imagePaths = []) => {
-  const localImagePaths = Array.from(
-    new Set(imagePaths.filter((imagePath) => isLocalProductUpload(imagePath))),
-  );
-
-  await Promise.all(
-    localImagePaths.map(async (imagePath) => {
-      try {
-        await fs.promises.unlink(toLocalUploadPath(imagePath));
-      } catch (error) {
-        if (error.code !== 'ENOENT') {
-          throw error;
-        }
-      }
-    }),
-  );
-};
 
 const normalizeProductPayload = (payload = {}, uploadedImages = []) => {
   const hasUploadedImages = uploadedImages.length > 0;
@@ -177,7 +150,6 @@ exports.createProduct = async (req, res) => {
     const product = await Product.create(normalizeProductPayload(req.body, uploadedImages));
     res.status(201).json(product);
   } catch (error) {
-    await deleteLocalProductImages(uploadedImages);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -188,21 +160,14 @@ exports.updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
-      await deleteLocalProductImages(uploadedImages);
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    const previousImages = [...(product.images || [])];
     product.set(normalizeProductPayload({ ...product.toObject(), ...req.body }, uploadedImages));
     await product.save();
 
-    if (uploadedImages.length > 0) {
-      await deleteLocalProductImages(previousImages);
-    }
-
     res.json(product);
   } catch (error) {
-    await deleteLocalProductImages(uploadedImages);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -212,7 +177,6 @@ exports.deleteProduct = async (req, res) => {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    await deleteLocalProductImages(product.images || []);
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

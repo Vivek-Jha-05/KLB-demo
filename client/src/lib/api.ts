@@ -217,7 +217,7 @@ export const resolveAssetUrl = (path: string) => {
     return '';
   }
 
-  if (isAbsoluteUrl(path)) {
+  if (isAbsoluteUrl(path) || path.startsWith('data:')) {
     return path;
   }
 
@@ -822,5 +822,37 @@ export const submitContactForm = async (
   return apiRequest<{ message: string; id: string }>('/leads', {
     method: 'POST',
     body: data as Record<string, unknown>,
+  });
+};
+
+export interface Lead {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+  status: 'new' | 'read' | 'replied';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeadsResponse {
+  leads: Lead[];
+  page: number;
+  totalPages: number;
+  total: number;
+}
+
+export const fetchLeads = async (status?: string): Promise<LeadsResponse> => {
+  const query = status && status !== 'all' ? `?status=${status}` : '';
+  return apiRequest<LeadsResponse>(`/leads/admin${query}`, { auth: true });
+};
+
+export const updateLeadStatus = async (id: string, status: string): Promise<Lead> => {
+  return apiRequest<Lead>(`/leads/admin/${id}`, {
+    method: 'PUT',
+    auth: true,
+    body: { status },
   });
 };
