@@ -1,14 +1,77 @@
 const Product = require('../models/Product');
 const { invalidateCache } = require('../middleware/cache');
+const cloudinary = require('../config/cloudinary');
+const csv = require('csv-parser');
+const { Readable } = require('stream');
 
 const DEFAULT_PAGE_SIZE = 12;
 
-const buildUploadedImagePaths = (files = []) =>
-  Array.from(
-    new Set(
-      files.map((file) => file?.path || '').filter(Boolean),
-    ),
-  );
+/**
+ * transformToDirectUrl(url)
+ * Converts non-direct URLs (Unsplash, Google Drive) into downloadable formats.
+ */
+const transformToDirectUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+
+  // 1. Handle Unsplash
+  if (url.includes('unsplash.com')) {
+    // If it doesn't already have query params, append optimization
+    if (!url.includes('?')) {
+      return `${url}?auto=format&fit=crop&w=800&q=80`;
+    }
+    return url;
+  }
+
+  // 2. Handle Google Drive
+  const driveMatch = url.match(/(?:\/file\/d\/|id=)([\w-]+)/);
+  if (url.includes('drive.google.com') && driveMatch) {
+    const fileId = driveMatch[1];
+    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+  }
+
+  // 3. Return original if no transformation needed
+  return url;
+};
+
+const buildUploadedImagePaths = (files = {}) => {
+  if (!files || typeof files !== 'object') return { primary: '', additional: [] };
+  
+  const primary = Array.isArray(files.image) && files.image[0] ? files.image[0].path : '';
+  const additional = Array.isArray(files.images) ? files.images.map((file) => file.path).filter(Boolean) : [];
+  
+  return { primary, additional };
+};
+
+/**
+ * uploadImageFromUrl(url)
+ * Reusable helper to transform and upload strings/URLs to Cloudinary
+ */
+const uploadImageFromUrl = async (source, folder = 'klb_products') => {
+  if (!source || typeof source !== 'string') return null;
+  // If it's already a Cloudinary URL, don't re-upload
+  if (source.includes('res.cloudinary.com')) return source;
+
+  const transformedUrl = transformToDirectUrl(source);
+  
+  try {
+    console.log(`[Cloudinary] Original URL: ${source.substring(0, 50)}...`);
+    if (source !== transformedUrl) {
+      console.log(`[Cloudinary] Transformed URL: ${transformedUrl.substring(0, 50)}...`);
+    }
+
+    const result = await cloudinary.uploader.upload(transformedUrl, {
+      folder: folder,
+      resource_type: 'auto',
+    });
+
+    console.log(`[Cloudinary] Success: ${result.secure_url}`);
+    return result.secure_url;
+  } catch (error) {
+    console.error(`[Cloudinary] Failed for: ${transformedUrl.substring(0, 50)}...`, error.message);
+    // FALLBACK: Return original source so import does not break
+    return source;
+  }
+};
 
 const toTrimmedString = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -46,12 +109,30 @@ const normalizeImageList = (value) => {
   return [];
 };
 
-const normalizeProductPayload = (payload = {}, uploadedImages = []) => {
-  const hasUploadedImages = uploadedImages.length > 0;
-  const primaryImage = hasUploadedImages ? uploadedImages[0] : toTrimmedString(payload.image);
-  const images = hasUploadedImages
-    ? uploadedImages
-    : Array.from(new Set([primaryImage, ...normalizeImageList(payload.images)].filter(Boolean)));
+const normalizeProductPayload = async (payload = {}, uploaded = { primary: '', additional: [] }) => {
+  // 1. COLLECT ALL SOURCES
+  const imageSource = uploaded.primary || payload.image || '';
+  let imagesSources = uploaded.additional.length > 0
+    ? uploaded.additional
+    : normalizeImageList(payload.images);
+
+  // 2. PARALLEL UPLOAD (OPTIMIZED)
+  // Ensure we upload every non-Cloudinary link in parallel
+  const uploadTasks = [
+    uploadImageFromUrl(imageSource),
+    ...imagesSources.map(url => uploadImageFromUrl(url))
+  ];
+
+  console.log(`[Normalize] Processing ${uploadTasks.length} upload tasks...`);
+  const results = await Promise.all(uploadTasks);
+  console.log(`[Normalize] Upload results received: ${results.filter(Boolean).length} succeeded`);
+  
+  // 3. FILTER RESULTS
+  const [optimizedPrimary, ...optimizedAdditional] = results;
+  const filteredAdditional = optimizedAdditional.filter(Boolean);
+  
+  // Final set: unique Cloudinary URLs only
+  const finalImages = Array.from(new Set([optimizedPrimary, ...filteredAdditional].filter(Boolean)));
 
   return {
     name: toTrimmedString(payload.name),
@@ -61,8 +142,8 @@ const normalizeProductPayload = (payload = {}, uploadedImages = []) => {
     subtitle: toTrimmedString(payload.subtitle || payload.dosage),
     manufacturer: toTrimmedString(payload.manufacturer),
     dosage: toTrimmedString(payload.dosage),
-    image: images[0] || '',
-    images,
+    image: finalImages[0] || '',
+    images: finalImages,
     stock: Math.max(0, normalizeNumber(payload.stock)),
     requiresPrescription: normalizeBoolean(payload.requiresPrescription),
     featured: normalizeBoolean(payload.featured),
@@ -141,10 +222,11 @@ exports.getProductById = async (req, res) => {
 };
 
 exports.createProduct = async (req, res) => {
-  const uploadedImages = buildUploadedImagePaths(req.files);
+  const uploaded = buildUploadedImagePaths(req.files);
 
   try {
-    const product = await Product.create(normalizeProductPayload(req.body, uploadedImages));
+    const normalizedPayload = await normalizeProductPayload(req.body, uploaded);
+    const product = await Product.create(normalizedPayload);
     invalidateCache('/api/products');
     res.status(201).json(product);
   } catch (error) {
@@ -153,7 +235,7 @@ exports.createProduct = async (req, res) => {
 };
 
 exports.updateProduct = async (req, res) => {
-  const uploadedImages = buildUploadedImagePaths(req.files);
+  const uploaded = buildUploadedImagePaths(req.files);
 
   try {
     const product = await Product.findById(req.params.id);
@@ -161,7 +243,10 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    product.set(normalizeProductPayload({ ...product.toObject(), ...req.body }, uploadedImages));
+    const currentData = product.toObject();
+    const normalizedPayload = await normalizeProductPayload({ ...currentData, ...req.body }, uploaded);
+    
+    product.set(normalizedPayload);
     await product.save();
 
     invalidateCache('/api/products');
@@ -185,9 +270,42 @@ exports.deleteProduct = async (req, res) => {
 
 exports.importProducts = async (req, res) => {
   try {
-    const productList = Array.isArray(req.body?.products) ? req.body.products : [];
+    let productList = [];
+
+    // 1. Handle manual JSON in body
+    if (Array.isArray(req.body?.products)) {
+      productList = req.body.products;
+    } 
+    // 2. Handle File Upload (CSV or JSON)
+    else if (req.file) {
+      const fileContent = req.file.buffer.toString();
+      const filename = req.file.originalname.toLowerCase();
+
+      if (filename.endsWith('.json')) {
+        try {
+          productList = JSON.parse(fileContent);
+          if (!Array.isArray(productList)) productList = [productList];
+        } catch (error) {
+          return res.status(400).json({ message: 'Invalid JSON file format' });
+        }
+      } else if (filename.endsWith('.csv')) {
+        try {
+          productList = await new Promise((resolve, reject) => {
+            const results = [];
+            Readable.from(fileContent)
+              .pipe(csv())
+              .on('data', (data) => results.push(data))
+              .on('end', () => resolve(results))
+              .on('error', (err) => reject(err));
+          });
+        } catch (error) {
+          return res.status(400).json({ message: 'Error parsing CSV file', error: error.message });
+        }
+      }
+    }
+
     if (productList.length === 0) {
-      return res.status(400).json({ message: 'Please provide at least one product to import.' });
+      return res.status(400).json({ message: 'Please provide at least one product to import via JSON body or uploaded file (.csv/.json).' });
     }
 
     const summary = {
@@ -204,12 +322,13 @@ exports.importProducts = async (req, res) => {
         const productId = toTrimmedString(incomingProduct.id || incomingProduct._id);
 
         let existingProduct = null;
-        if (productId) {
+        if (productId && productId.match(/^[0-9a-fA-F]{24}$/)) {
           existingProduct = await Product.findById(productId);
         }
 
         if (!existingProduct) {
-          const normalizedProduct = normalizeProductPayload(incomingProduct);
+          // Normalize only once to check for existence
+          const normalizedProduct = await normalizeProductPayload(incomingProduct);
           existingProduct = await Product.findOne({
             name: normalizedProduct.name,
             category: normalizedProduct.category,
@@ -218,17 +337,19 @@ exports.importProducts = async (req, res) => {
         }
 
         if (existingProduct) {
-          existingProduct.set(
-            normalizeProductPayload({ ...existingProduct.toObject(), ...incomingProduct }),
-          );
+          // AWAIT the normalization which handles Cloudinary uploads
+          const normalizedPayload = await normalizeProductPayload({ ...existingProduct.toObject(), ...incomingProduct });
+          existingProduct.set(normalizedPayload);
           await existingProduct.save();
           summary.updated += 1;
         } else {
-          await Product.create(normalizeProductPayload(incomingProduct));
+          // AWAIT the creation and normalization
+          const normalizedPayload = await normalizeProductPayload(incomingProduct);
+          await Product.create(normalizedPayload);
           summary.created += 1;
         }
       } catch (error) {
-        summary.errors.push(`Row ${index + 1}: ${error.message}`);
+        summary.errors.push(`Row ${index + 1} (${incomingProduct.name || 'Unknown'}): ${error.message}`);
       }
     }
 
@@ -241,6 +362,6 @@ exports.importProducts = async (req, res) => {
 
     res.status(statusCode).json(summary);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error during import', error: error.message });
   }
 };
