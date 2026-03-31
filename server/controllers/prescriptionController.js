@@ -23,9 +23,7 @@ exports.uploadPrescription = async (req, res) => {
       return res.status(400).json({ message: 'Please upload a file' });
     }
     
-    // Convert buffer to base64 string
-    const base64Data = req.file.buffer.toString('base64');
-    const fileUrl = `data:${req.file.mimetype};base64,${base64Data}`;
+    const fileUrl = req.file.path;
 
     const prescription = await Prescription.create({
       userId: req.user._id,

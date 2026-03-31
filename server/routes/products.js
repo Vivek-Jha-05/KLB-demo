@@ -11,27 +11,11 @@ const {
   importProducts,
 } = require('../controllers/productController');
 const { protect, adminOnly } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const { cacheMiddleware } = require('../middleware/cache');
 
-const storage = multer.memoryStorage();
-
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-    files: 8,
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-      return;
-    }
-
-    cb(new Error('Only image files are allowed for product uploads.'));
-  },
-});
-
-router.get('/', getProducts);
-router.get('/:id', getProductById);
+router.get('/', cacheMiddleware(120), getProducts);
+router.get('/:id', cacheMiddleware(120), getProductById);
 router.post('/admin', protect, adminOnly, upload.array('images', 8), createProduct);
 router.post('/admin/import', protect, adminOnly, importProducts);
 router.put('/admin/:id', protect, adminOnly, upload.array('images', 8), updateProduct);

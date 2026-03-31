@@ -1,21 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const connectDB = require('./config/db');
-const fs = require('fs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
-
-// Ensure uploads directories exist
-[
-  path.join(__dirname, 'uploads', 'prescriptions'),
-  path.join(__dirname, 'uploads', 'products'),
-].forEach((directoryPath) => {
-  fs.mkdirSync(directoryPath, { recursive: true });
-});
 
 // Middleware
 app.use(helmet({
@@ -44,7 +34,6 @@ app.options("*", cors());
 // app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api', globalLimiter); // Apply global limit to all API routes
 
 

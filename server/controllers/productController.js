@@ -1,6 +1,14 @@
 const Product = require('../models/Product');
+const { invalidateCache } = require('../middleware/cache');
 
 const DEFAULT_PAGE_SIZE = 12;
+
+const buildUploadedImagePaths = (files = []) =>
+  Array.from(
+    new Set(
+      files.map((file) => file?.path || '').filter(Boolean),
+    ),
+  );
 
 const toTrimmedString = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -37,17 +45,6 @@ const normalizeImageList = (value) => {
 
   return [];
 };
-
-const buildUploadedImagePaths = (files = []) =>
-  Array.from(
-    new Set(
-      files
-        .map((file) =>
-          file?.buffer ? `data:${file.mimetype};base64,${file.buffer.toString('base64')}` : '',
-        )
-        .filter(Boolean),
-    ),
-  );
 
 const normalizeProductPayload = (payload = {}, uploadedImages = []) => {
   const hasUploadedImages = uploadedImages.length > 0;
@@ -148,6 +145,7 @@ exports.createProduct = async (req, res) => {
 
   try {
     const product = await Product.create(normalizeProductPayload(req.body, uploadedImages));
+    invalidateCache('/api/products');
     res.status(201).json(product);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -166,6 +164,7 @@ exports.updateProduct = async (req, res) => {
     product.set(normalizeProductPayload({ ...product.toObject(), ...req.body }, uploadedImages));
     await product.save();
 
+    invalidateCache('/api/products');
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -177,6 +176,7 @@ exports.deleteProduct = async (req, res) => {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
+    invalidateCache('/api/products');
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -230,6 +230,10 @@ exports.importProducts = async (req, res) => {
       } catch (error) {
         summary.errors.push(`Row ${index + 1}: ${error.message}`);
       }
+    }
+
+    if (summary.created > 0 || summary.updated > 0) {
+      invalidateCache('/api/products');
     }
 
     const statusCode =
