@@ -390,10 +390,10 @@ export const AdminDashboardPage: React.FC = () => {
                 <p className="font-medium text-gray-900">Review Rx</p>
               </div>
             </Link>
-            <Link to="/" className="block">
+            <Link to="/admin/leads" className="block">
               <div className="rounded-lg border p-4 text-center transition-colors hover:bg-gray-50">
                 <Users className="mx-auto mb-2 h-8 w-8 text-purple-600" />
-                <p className="font-medium text-gray-900">View Store</p>
+                <p className="font-medium text-gray-900">View Contacts</p>
               </div>
             </Link>
           </div>

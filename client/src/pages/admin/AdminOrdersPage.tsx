@@ -10,7 +10,9 @@ import {
   ChevronDown,
   FileText,
   MapPin,
-  Phone
+  Phone,
+  CreditCard,
+  Banknote
 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -73,6 +75,28 @@ export const AdminOrdersPage: React.FC = () => {
       cancelled: 'bg-red-100 text-red-700'
     };
     return styles[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const getPaymentStatusStyle = (status: string) => {
+    const styles: Record<string, string> = {
+      cod: 'bg-amber-100 text-amber-700',
+      pending: 'bg-yellow-100 text-yellow-700',
+      paid: 'bg-emerald-100 text-emerald-700',
+      failed: 'bg-red-100 text-red-700',
+      refunded: 'bg-gray-100 text-gray-700'
+    };
+    return styles[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const getPaymentStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      cod: 'Cash on Delivery',
+      pending: 'Pending',
+      paid: 'Paid',
+      failed: 'Failed',
+      refunded: 'Refunded'
+    };
+    return labels[status] || status;
   };
 
   const formatDate = (dateStr: string) => {
@@ -182,6 +206,7 @@ export const AdminOrdersPage: React.FC = () => {
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Customer</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Items</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Total</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Payment</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Date</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                 <th className="px-4 py-3 text-right text-sm font-semibold text-gray-900">Actions</th>
@@ -206,6 +231,17 @@ export const AdminOrdersPage: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-medium">{formatCurrency(order.totalAmount)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-600">
+                        {order.paymentMethod === 'cod' ? <Banknote className="w-3 h-3" /> : <CreditCard className="w-3 h-3" />}
+                        {order.paymentMethod === 'cod' ? 'COD' : 'Online'}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getPaymentStatusStyle(order.paymentStatus)}`}>
+                        {getPaymentStatusLabel(order.paymentStatus)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-gray-600">{formatDate(order.createdAt)}</span>
@@ -336,14 +372,17 @@ export const AdminOrdersPage: React.FC = () => {
                   {formatCurrency(selectedOrder.totalAmount)}
                 </span>
               </div>
+              <div className="flex justify-between items-center mt-3 text-sm">
+                <span className="text-gray-500">Payment Method</span>
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-200 text-gray-700 font-medium">
+                  {selectedOrder.paymentMethod === 'cod' ? <Banknote className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
+                  {selectedOrder.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment'}
+                </span>
+              </div>
               <div className="flex justify-between items-center mt-2 text-sm">
                 <span className="text-gray-500">Payment Status</span>
-                <span className={`px-2 py-1 rounded ${
-                  selectedOrder.paymentStatus === 'paid' 
-                    ? 'bg-emerald-100 text-emerald-700' 
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
-                  {selectedOrder.paymentStatus}
+                <span className={`px-2 py-1 rounded font-medium ${getPaymentStatusStyle(selectedOrder.paymentStatus)}`}>
+                  {getPaymentStatusLabel(selectedOrder.paymentStatus)}
                 </span>
               </div>
             </div>

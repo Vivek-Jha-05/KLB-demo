@@ -176,7 +176,8 @@ exports.createOrder = async (req, res, next) => {
       orderStatus: prescriptionState.orderStatus,
       prescriptionId: prescriptionState.resolvedPrescriptionId,
       requiresPrescription: needsPrescription,
-      paymentMethod
+      paymentMethod,
+      paymentStatus: paymentMethod === 'cod' ? 'cod' : 'pending'
     });
 
     if (paymentMethod === 'cod') {
@@ -245,9 +246,19 @@ exports.getAllOrders = async (req, res, next) => {
 exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { orderStatus } = req.body;
+    const updateFields = { orderStatus };
+
+    // Auto-mark COD orders as paid when delivered
+    if (orderStatus === 'delivered') {
+      const existingOrder = await Order.findById(req.params.id);
+      if (existingOrder && existingOrder.paymentMethod === 'cod') {
+        updateFields.paymentStatus = 'paid';
+      }
+    }
+
     const order = await Order.findByIdAndUpdate(
       req.params.id,
-      { orderStatus },
+      updateFields,
       { new: true }
     ).populate('userId', 'name email');
     if (!order) return res.status(404).json({ message: 'Order not found' });

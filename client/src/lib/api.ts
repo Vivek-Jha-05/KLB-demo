@@ -90,6 +90,7 @@ interface ApiOrder {
   items?: ApiOrderItem[];
   totalAmount?: number;
   paymentStatus?: string;
+  paymentMethod?: string;
   orderStatus?: string;
   prescriptionId?: string | { _id?: string; id?: string } | null;
   shippingAddress?: {
@@ -176,7 +177,7 @@ const VALID_ORDER_STATUSES: OrderStatus[] = [
   'cancelled',
 ];
 
-const VALID_PAYMENT_STATUSES: PaymentStatus[] = ['pending', 'paid', 'failed', 'refunded'];
+const VALID_PAYMENT_STATUSES: PaymentStatus[] = ['pending', 'paid', 'failed', 'refunded', 'cod'];
 const VALID_PRESCRIPTION_STATUSES: PrescriptionStatus[] = ['pending', 'approved', 'rejected'];
 
 const buildApiPath = (path: string) => {
@@ -417,6 +418,7 @@ const normalizeOrder = (order: ApiOrder): Order => {
     items,
     totalAmount: Number(order.totalAmount ?? 0),
     paymentStatus: normalizePaymentStatus(order.paymentStatus),
+    paymentMethod: (order.paymentMethod === 'cod' ? 'cod' : 'online') as Order['paymentMethod'],
     orderStatus: normalizeOrderStatus(order.orderStatus),
     prescriptionId: toId(order.prescriptionId) || undefined,
     shippingAddress: {

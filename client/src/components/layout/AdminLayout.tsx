@@ -163,13 +163,13 @@ export const AdminLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* View Site Link */}
+            {/* View Site Link
             <Link
               to="/"
               className="hidden sm:block text-sm text-emerald-600 hover:text-emerald-700"
             >
               View Site →
-            </Link>
+            </Link> */}
 
             {/* Profile Dropdown */}
             <div className="relative">

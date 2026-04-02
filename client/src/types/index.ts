@@ -84,7 +84,8 @@ export interface Order {
   userName: string;
   items: OrderItem[];
   totalAmount: number;
-  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'cod';
+  paymentMethod: 'online' | 'cod';
   orderStatus: 'pending_approval' | 'approved' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   prescriptionId?: string;
   shippingAddress: Address;
