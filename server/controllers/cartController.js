@@ -50,6 +50,13 @@ const loadCartResponse = async (userId) => {
     };
   }
 
+  // Auto-clean items whose product was deleted from the database
+  const validItems = cart.items.filter((item) => item.productId != null);
+  if (validItems.length !== cart.items.length) {
+    cart.items = validItems;
+    await cart.save();
+  }
+
   return cart;
 };
 

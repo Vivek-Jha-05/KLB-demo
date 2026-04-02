@@ -116,26 +116,36 @@ const normalizeImageList = (value) => {
 };
 
 const normalizeProductPayload = async (payload = {}, uploaded = { primary: '', additional: [] }) => {
-  // 1. COLLECT ALL SOURCES
-  const imageSource = uploaded.primary || payload.image || '';
-  let imagesSources = uploaded.additional.length > 0
-    ? uploaded.additional
-    : normalizeImageList(payload.images);
+  // 1. DETERMINE IMAGE SOURCES
+  // If multer uploaded files, those are already in Cloudinary — use them directly (no re-upload).
+  // Otherwise, fall back to URL strings from the request body and upload those to Cloudinary.
+  const hasUploadedFiles = uploaded.primary || uploaded.additional.length > 0;
 
-  // 2. PARALLEL UPLOAD (OPTIMIZED)
-  // Ensure we upload every non-Cloudinary link in parallel
-  const uploadTasks = [
-    ...imagesSources.map(url => uploadImageFromUrl(url))
-  ];
+  let finalImages;
 
-  const results = await Promise.all(uploadTasks);
-  
-  // 3. FILTER RESULTS
-  const [optimizedPrimary, ...optimizedAdditional] = results;
-  const filteredAdditional = optimizedAdditional.filter(Boolean);
-  
-  // Final set: unique Cloudinary URLs only
-  const finalImages = Array.from(new Set([optimizedPrimary, ...filteredAdditional].filter(Boolean)));
+  if (hasUploadedFiles) {
+    // Files already uploaded to Cloudinary by multer-storage-cloudinary.
+    // Combine primary + additional, deduplicate, and use directly.
+    finalImages = Array.from(
+      new Set([uploaded.primary, ...uploaded.additional].filter(Boolean)),
+    );
+  } else {
+    // No file uploads — process URL strings from the request body.
+    const bodyImage = (typeof payload.image === 'string' && payload.image.trim()) || '';
+    const bodyImages = normalizeImageList(payload.images);
+
+    // Merge primary + list, deduplicate before uploading
+    const allSources = Array.from(
+      new Set([bodyImage, ...bodyImages].filter(Boolean)),
+    );
+
+    // Upload non-Cloudinary URLs in parallel
+    const results = await Promise.all(
+      allSources.map((url) => uploadImageFromUrl(url)),
+    );
+
+    finalImages = results.filter(Boolean);
+  }
 
   return {
     name: toTrimmedString(payload.name),

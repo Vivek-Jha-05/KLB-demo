@@ -129,11 +129,14 @@ exports.createOrder = async (req, res, next) => {
     let totalAmount = 0;
     let needsPrescription = false;
     const orderProducts = [];
+    const unavailableItemIds = [];
 
     for (const item of cart.items) {
       const dbProduct = item.productId;
       if (!dbProduct) {
-        return res.status(400).json({ message: 'One or more cart items are no longer available' });
+        // Product was deleted — mark for removal from cart
+        unavailableItemIds.push(item.productId);
+        continue;
       }
 
       if (dbProduct.stock < item.quantity) {
@@ -152,6 +155,18 @@ exports.createOrder = async (req, res, next) => {
         quantity: item.quantity,
         image: dbProduct.image
       });
+    }
+
+    // Auto-clean unavailable items from cart
+    if (unavailableItemIds.length > 0) {
+      cart.items = cart.items.filter(
+        (item) => item.productId && item.productId._id,
+      );
+    }
+
+    if (orderProducts.length === 0) {
+      await cart.save();
+      return res.status(400).json({ message: 'All cart items are no longer available. Your cart has been cleaned up.' });
     }
 
     const shippingFee = totalAmount >= 500 ? 0 : 50;
