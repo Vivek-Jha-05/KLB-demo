@@ -77,16 +77,16 @@ const releaseActiveOrder = async (cart, userId) => {
   cart.activeOrderId = null;
 };
 
-exports.getMyCart = async (req, res) => {
+exports.getMyCart = async (req, res, next) => {
   try {
     const cart = await loadCartResponse(req.user._id);
     res.json(cart);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.addCartItem = async (req, res) => {
+exports.addCartItem = async (req, res, next) => {
   try {
     const { productId, quantity = 1 } = req.body;
     const normalizedQuantity = Math.max(1, Number(quantity) || 1);
@@ -118,11 +118,11 @@ exports.addCartItem = async (req, res) => {
     await cart.save();
     res.json(await loadCartResponse(req.user._id));
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.updateCartItem = async (req, res) => {
+exports.updateCartItem = async (req, res, next) => {
   try {
     const { quantity } = req.body;
     const normalizedQuantity = Number(quantity);
@@ -156,11 +156,11 @@ exports.updateCartItem = async (req, res) => {
 
     res.json(await loadCartResponse(req.user._id));
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.removeCartItem = async (req, res) => {
+exports.removeCartItem = async (req, res, next) => {
   try {
     const cart = await getOrCreateCart(req.user._id);
     await releaseActiveOrder(cart, req.user._id);
@@ -172,11 +172,11 @@ exports.removeCartItem = async (req, res) => {
     await cart.save();
     res.json(await loadCartResponse(req.user._id));
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.clearCart = async (req, res) => {
+exports.clearCart = async (req, res, next) => {
   try {
     const cart = await getOrCreateCart(req.user._id);
     await releaseActiveOrder(cart, req.user._id);
@@ -188,11 +188,11 @@ exports.clearCart = async (req, res) => {
     await cart.save();
     res.json(await loadCartResponse(req.user._id));
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.updateShippingAddress = async (req, res) => {
+exports.updateShippingAddress = async (req, res, next) => {
   try {
     const cart = await getOrCreateCart(req.user._id);
     const nextAddress = normalizeShippingAddress(req.body);
@@ -217,6 +217,6 @@ exports.updateShippingAddress = async (req, res) => {
     await cart.save();
     res.json(await loadCartResponse(req.user._id));
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };

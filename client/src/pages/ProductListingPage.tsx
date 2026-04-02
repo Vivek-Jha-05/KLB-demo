@@ -3,13 +3,16 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Filter, Grid, Heart, List, ShoppingCart, X } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
-import { ProductImage } from '../components/ui/ProductImage';
 import { useProductStore } from '../store/productStore';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { Product } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { getPrimaryProductImage, getProductImages } from '../utils/product';
+import { ProductImage } from '../components/ui/ProductImage';
+import { logger } from '../utils/logger';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/errorUtils';
 
 export const ProductListingPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,14 +99,16 @@ export const ProductListingPage: React.FC = () => {
     event.stopPropagation();
 
     if (!user) {
-      alert('Please login to add items to cart');
+      toast.info('Please login to add items to cart');
       return;
     }
 
     try {
       await addToCart(user.id, product);
+      toast.success(`Added ${product.name} to cart`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to add this item to cart.');
+      logger.error('Failed to add item to cart');
+      toast.error(getErrorMessage(error, 'Unable to add item to cart. Please try again.'));
     }
   };
 
@@ -303,9 +308,9 @@ export const ProductListingPage: React.FC = () => {
                             {imageCount} images
                           </span>
                         )}
-                        <button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-colors hover:bg-red-50">
+                        {/* <button className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-colors hover:bg-red-50">
                           <Heart className="h-4 w-4 text-gray-400 hover:text-red-500" />
-                        </button>
+                        </button> */}
                       </div>
                       <CardContent>
                         <p className="mb-1 text-sm text-emerald-600">{product.category}</p>

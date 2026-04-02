@@ -16,7 +16,7 @@ const getPagination = (query = {}, fallbackLimit = 20) => {
   };
 };
 
-exports.submitLead = async (req, res) => {
+exports.submitLead = async (req, res, next) => {
   try {
     const { name, email, phone, subject, message } = req.body;
 
@@ -48,11 +48,11 @@ exports.submitLead = async (req, res) => {
       return res.status(400).json({ message: messages.join(', ') });
     }
 
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.getAllLeads = async (req, res) => {
+exports.getAllLeads = async (req, res, next) => {
   try {
     const { status } = req.query;
     const filter = {};
@@ -79,11 +79,11 @@ exports.getAllLeads = async (req, res) => {
       total,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.updateLeadStatus = async (req, res) => {
+exports.updateLeadStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
 
@@ -103,6 +103,6 @@ exports.updateLeadStatus = async (req, res) => {
 
     res.json(lead);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };

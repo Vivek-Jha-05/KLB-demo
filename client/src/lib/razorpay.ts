@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger';
+
 declare global {
   interface Window {
     Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayInstance;
@@ -24,6 +26,7 @@ export interface RazorpayCheckoutOptions {
   modal?: {
     ondismiss?: () => void;
   };
+  onPaymentFailed?: (response: RazorpayFailureEvent) => void;
 }
 
 export interface RazorpayPaymentResponse {
@@ -106,14 +109,8 @@ export const openRazorpayCheckout = async (options: Omit<RazorpayCheckoutOptions
       },
     });
 
-    razorpay.on('payment.failed', (response) => {
-      reject(
-        new Error(
-          response.error?.description ||
-            response.error?.reason ||
-            'Payment failed. Please try again.',
-        ),
-      );
+    razorpay.on('payment.failed', () => {
+      logger.error('Razorpay payment attempt failed');
     });
 
     razorpay.open();

@@ -56,6 +56,7 @@ export const CartPage: React.FC = () => {
   const [checkoutError, setCheckoutError] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
 
   const items = user ? getItems(user.id) : [];
   const total = user ? getTotal(user.id) : 0;
@@ -170,10 +171,23 @@ export const CartPage: React.FC = () => {
     setIsProcessingPayment(true);
 
     try {
+      if (paymentMethod === 'cod') {
+        const order = await createOrder(
+          items,
+          shippingAddress,
+          hasRxItems ? selectedPrescriptionId : undefined,
+          'cod'
+        );
+        completeCheckout(order.id, 'Order placed successfully with Cash on Delivery.');
+        return;
+      }
+
+      // Online Payment Flow
       const order = await createOrder(
         items,
         shippingAddress,
         hasRxItems ? selectedPrescriptionId : undefined,
+        'online'
       );
 
       const paymentResult = await createPaymentForOrder(order.id);
@@ -201,11 +215,19 @@ export const CartPage: React.FC = () => {
         theme: {
           color: '#059669',
         },
+        onPaymentFailed: (response) => {
+          setCheckoutError(response.error?.description || 'Payment attempt failed. You can try again.');
+        },
       });
 
       const verifiedOrder = await verifyPaymentForOrder(paymentResponse);
       completeCheckout(verifiedOrder.id, 'Payment completed successfully via Razorpay.');
     } catch (error) {
+      // Only set error if it wasn't a cancellation (handled by ondismiss in lib/razorpay.ts)
+      if (error instanceof Error && error.message.includes('cancelled')) {
+        setIsProcessingPayment(false);
+        return;
+      }
       setCheckoutError(
         error instanceof Error ? error.message : 'Unable to place your order right now.',
       );
@@ -444,10 +466,44 @@ export const CartPage: React.FC = () => {
           )}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Razorpay Checkout:</strong> Online payments are initiated only through the
-              server-configured Razorpay account.
-            </p>
+            <p className="text-sm text-blue-800 font-medium mb-3">Select Payment Method</p>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 bg-white p-3 rounded-md border cursor-pointer hover:border-emerald-500 transition-colors">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="online"
+                  checked={paymentMethod === 'online'}
+                  onChange={() => setPaymentMethod('online')}
+                  className="text-emerald-600 focus:ring-emerald-500"
+                />
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-emerald-600" />
+                  <span className="font-medium text-gray-900">Online Payment (Razorpay)</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 bg-white p-3 rounded-md border cursor-pointer hover:border-emerald-500 transition-colors">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cod"
+                  checked={paymentMethod === 'cod'}
+                  onChange={() => setPaymentMethod('cod')}
+                  className="text-emerald-600 focus:ring-emerald-500"
+                />
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-emerald-600" />
+                  <span className="font-medium text-gray-900">Cash on Delivery (COD)</span>
+                </div>
+              </label>
+            </div>
+            {paymentMethod === 'online' && (
+              <p className="text-xs text-blue-600 mt-3">
+                <strong>Razorpay Checkout:</strong> Online payments are initiated only through the
+                server-configured Razorpay account.
+              </p>
+            )}
           </div>
 
           {checkoutError && (
@@ -466,8 +522,17 @@ export const CartPage: React.FC = () => {
               isLoading={isProcessingPayment || isOrderLoading}
               disabled={hasRxItems && approvedPrescriptions.length === 0}
             >
-              <CreditCard className="w-4 h-4 mr-2" />
-              Pay INR {payableAmount}
+              {paymentMethod === 'online' ? (
+                <>
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Pay INR {payableAmount}
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Place COD Order
+                </>
+              )}
             </Button>
           </div>
         </div>

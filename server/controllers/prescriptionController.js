@@ -17,7 +17,7 @@ const getPagination = (query = {}, fallbackLimit = 20) => {
   };
 };
 
-exports.uploadPrescription = async (req, res) => {
+exports.uploadPrescription = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Please upload a file' });
@@ -32,20 +32,20 @@ exports.uploadPrescription = async (req, res) => {
     });
     res.status(201).json(prescription);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.getMyPrescriptions = async (req, res) => {
+exports.getMyPrescriptions = async (req, res, next) => {
   try {
     const prescriptions = await Prescription.find({ userId: req.user._id }).sort({ createdAt: -1 });
     res.json(prescriptions);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.getAllPrescriptions = async (req, res) => {
+exports.getAllPrescriptions = async (req, res, next) => {
   try {
     const { status } = req.query;
     const filter = {};
@@ -70,11 +70,11 @@ exports.getAllPrescriptions = async (req, res) => {
       total,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.reviewPrescription = async (req, res) => {
+exports.reviewPrescription = async (req, res, next) => {
   try {
     const { status, reviewNote } = req.body;
     if (!['approved', 'rejected'].includes(status)) {
@@ -104,6 +104,6 @@ exports.reviewPrescription = async (req, res) => {
 
     res.json(prescription);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };

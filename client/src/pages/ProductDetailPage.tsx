@@ -19,6 +19,9 @@ import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { formatCurrency } from '../utils/formatters';
 import { getPrimaryProductImage, getProductImages } from '../utils/product';
+import { logger } from '../utils/logger';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/errorUtils';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -72,20 +75,22 @@ export const ProductDetailPage: React.FC = () => {
 
   const handleAddToCart = async () => {
     if (!user) {
-      alert('Please login to add items to cart');
+      toast.info('Please login to add items to cart');
       return;
     }
 
     try {
       await addToCart(user.id, product, quantity);
+      toast.success(`Added ${product.name} to cart`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to add this item to cart.');
+      logger.error('Failed to add item to cart');
+      toast.error(getErrorMessage(error, 'Unable to add item to cart. Please try again.'));
     }
   };
 
   const handleBuyNow = async () => {
     if (!user) {
-      alert('Please login to add items to cart');
+      toast.info('Please login to add items to cart');
       return;
     }
 
@@ -93,7 +98,8 @@ export const ProductDetailPage: React.FC = () => {
       await addToCart(user.id, product, quantity);
       navigate('/cart');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to add this item to cart.');
+      logger.error('Failed to buy now');
+      toast.error(getErrorMessage(error, 'Unable to proceed to checkout. Please try again.'));
     }
   };
 
@@ -136,9 +142,9 @@ export const ProductDetailPage: React.FC = () => {
                 Prescription Required
               </div>
             )}
-            <button className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow transition-colors hover:bg-red-50">
+            {/* <button className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow transition-colors hover:bg-red-50">
               <Heart className="h-5 w-5 text-gray-400 hover:text-red-500" />
-            </button>
+            </button> */}
           </div>
 
           {productImages.length > 1 && (

@@ -4,6 +4,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { errorHandler, notFound } = require('./middleware/errorMiddleware');
 
 const app = express();
 
@@ -52,10 +53,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // Error handling
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: err.message || 'Internal Server Error' });
-});
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 

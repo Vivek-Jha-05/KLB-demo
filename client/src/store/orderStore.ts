@@ -26,6 +26,7 @@ interface OrderStore {
     items: CartItem[],
     shippingAddress: Address,
     prescriptionId?: string,
+    paymentMethod?: 'online' | 'cod',
   ) => Promise<Order>;
   createPaymentForOrder: (orderId: string) => Promise<PaymentResult>;
   verifyPaymentForOrder: (input: {
@@ -54,10 +55,10 @@ export const useOrderStore = create<OrderStore>()((set, get) => ({
   isLoading: false,
   error: null,
 
-  createOrder: async (items: CartItem[], shippingAddress: Address, prescriptionId?: string) => {
+  createOrder: async (items: CartItem[], shippingAddress: Address, prescriptionId?: string, paymentMethod?: 'online' | 'cod') => {
     set({ isLoading: true, error: null });
     try {
-      const order = await createOrder(items, shippingAddress, prescriptionId);
+      const order = await createOrder(items, shippingAddress, prescriptionId, paymentMethod);
       set((state) => ({
         orders: upsertOrder(state.orders, order),
         isLoading: false,

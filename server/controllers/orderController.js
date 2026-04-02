@@ -68,9 +68,9 @@ const resolvePrescriptionState = async (userId, needsPrescription, prescriptionI
   };
 };
 
-exports.createOrder = async (req, res) => {
+exports.createOrder = async (req, res, next) => {
   try {
-    const { shippingAddress, prescriptionId } = req.body;
+    const { shippingAddress, prescriptionId, paymentMethod = 'online' } = req.body;
     const cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
 
     if (!cart || cart.items.length === 0) {
@@ -97,7 +97,29 @@ exports.createOrder = async (req, res) => {
         existingOrder.shippingAddress = resolvedShippingAddress;
         existingOrder.orderStatus = prescriptionState.orderStatus;
         existingOrder.prescriptionId = prescriptionState.resolvedPrescriptionId;
+        existingOrder.paymentMethod = paymentMethod;
+
         await Promise.all([existingOrder.save(), cart.save()]);
+
+        if (paymentMethod === 'cod') {
+          // Clear cart for COD
+          await Cart.findOneAndUpdate(
+            { userId: req.user._id },
+            {
+              items: [],
+              shippingAddress: {
+                fullName: '',
+                phone: '',
+                street: '',
+                city: '',
+                state: '',
+                zip: '',
+              },
+              activeOrderId: null,
+            }
+          );
+        }
+
         return res.status(200).json(existingOrder);
       }
 
@@ -153,34 +175,45 @@ exports.createOrder = async (req, res) => {
       shippingAddress: resolvedShippingAddress,
       orderStatus: prescriptionState.orderStatus,
       prescriptionId: prescriptionState.resolvedPrescriptionId,
-      requiresPrescription: needsPrescription
+      requiresPrescription: needsPrescription,
+      paymentMethod
     });
 
-    cart.activeOrderId = order._id;
+    if (paymentMethod === 'cod') {
+      cart.items = [];
+      cart.shippingAddress = {
+        fullName: '',
+        phone: '',
+        street: '',
+        city: '',
+        state: '',
+        zip: '',
+      };
+      cart.activeOrderId = null;
+    } else {
+      cart.activeOrderId = order._id;
+    }
+
     await cart.save();
 
     res.status(201).json(order);
   } catch (error) {
-    res.status(error.statusCode || 500).json({
-      message: error.message || 'Server error',
-      ...(error.payload || {}),
-      error: error.statusCode ? undefined : error.message,
-    });
+    next(error);
   }
 };
 
-exports.getMyOrders = async (req, res) => {
+exports.getMyOrders = async (req, res, next) => {
   try {
     const orders = await Order.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
       .populate('prescriptionId');
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.getAllOrders = async (req, res) => {
+exports.getAllOrders = async (req, res, next) => {
   try {
     const { status } = req.query;
     const filter = {};
@@ -205,11 +238,11 @@ exports.getAllOrders = async (req, res) => {
       total,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.updateOrderStatus = async (req, res) => {
+exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { orderStatus } = req.body;
     const order = await Order.findByIdAndUpdate(
@@ -220,6 +253,6 @@ exports.updateOrderStatus = async (req, res) => {
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };

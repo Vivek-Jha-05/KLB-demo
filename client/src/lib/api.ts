@@ -698,6 +698,7 @@ export const createOrder = async (
   items: CartItem[],
   shippingAddress: Address,
   prescriptionId?: string,
+  paymentMethod: 'online' | 'cod' = 'online',
 ): Promise<Order> => {
   const response = await apiRequest<ApiOrder>('/orders', {
     method: 'POST',
@@ -709,6 +710,7 @@ export const createOrder = async (
       })),
       shippingAddress: serializeShippingAddress(shippingAddress),
       prescriptionId: prescriptionId || undefined,
+      paymentMethod,
     },
   });
 

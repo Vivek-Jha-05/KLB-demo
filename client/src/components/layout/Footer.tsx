@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Camera, Globe, Mail, MapPin, MessageCircle, Phone, Pill } from 'lucide-react';
+import { ArrowRight, Camera, Globe, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import { ScrollReveal } from '../ui/ScrollReveal';
+import logo from '../../assets/logo.jpeg';
 
 const quickLinks = [
   { label: 'All Products', to: '/products' },
@@ -33,8 +34,8 @@ export const Footer: React.FC = () => {
           <ScrollReveal className="h-full">
             <div className="h-full rounded-[32px] border border-white/10 bg-white/8 p-7 backdrop-blur-sm">
               <Link to="/" className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-[0_20px_40px_-22px_rgba(5,150,105,0.8)]">
-                  <Pill className="h-6 w-6" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_20px_40px_-22px_rgba(5,150,105,0.8)]">
+                  <img src={logo} alt="KLB Lifesciences Pvt. Ltd." className='rounded-full'/>
                 </div>
                 <div>
                   {/* UPDATED CONTENT */}

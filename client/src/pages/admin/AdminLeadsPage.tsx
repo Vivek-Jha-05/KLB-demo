@@ -13,6 +13,9 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { fetchLeads, updateLeadStatus, type Lead } from '../../lib/api';
+import { logger } from '../../utils/logger';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export const AdminLeadsPage: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -27,8 +30,8 @@ export const AdminLeadsPage: React.FC = () => {
     try {
       const data = await fetchLeads(statusFilter);
       setLeads(data.leads);
-    } catch {
-      // silently fail
+    } catch (error) {
+      logger.error('Failed to load leads');
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +98,10 @@ export const AdminLeadsPage: React.FC = () => {
       if (selectedLead && selectedLead._id === leadId) {
         setSelectedLead(updated);
       }
+      toast.success(`Message marked as ${newStatus}`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to update status');
+      logger.error('Failed to update lead status');
+      toast.error(getErrorMessage(error, 'Unable to update status. Please check your connection and try again.'));
     }
   };
 

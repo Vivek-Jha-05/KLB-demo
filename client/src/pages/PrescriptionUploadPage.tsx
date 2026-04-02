@@ -16,6 +16,9 @@ import { Badge } from '../components/ui/Badge';
 import { useAuthStore } from '../store/authStore';
 import { usePrescriptionStore } from '../store/prescriptionStore';
 import { AuthModal } from '../components/auth/AuthModal';
+import { logger } from '../utils/logger';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../utils/errorUtils';
 
 export const PrescriptionUploadPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +44,7 @@ export const PrescriptionUploadPage: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size should be less than 5MB');
+        toast.error('File size should be less than 5MB');
         return;
       }
       setSelectedFile(file);
@@ -78,8 +81,10 @@ export const PrescriptionUploadPage: React.FC = () => {
       setUploadSuccess(true);
       setSelectedFile(null);
       setPreviewUrl(null);
+      toast.success('Prescription uploaded successfully. We will review it shortly.');
     } catch (error) {
-      alert('Upload failed. Please try again.');
+      logger.error('Prescription upload failed');
+      toast.error(getErrorMessage(error, 'Unable to upload prescription. Please try again.'));
     } finally {
       setIsUploading(false);
     }

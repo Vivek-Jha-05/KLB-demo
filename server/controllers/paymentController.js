@@ -10,7 +10,7 @@ const getRazorpayInstance = () => {
   });
 };
 
-exports.createPaymentOrder = async (req, res) => {
+exports.createPaymentOrder = async (req, res, next) => {
   try {
     const { orderId } = req.body;
     const order = await Order.findOne({ _id: orderId, userId: req.user._id });
@@ -48,11 +48,11 @@ exports.createPaymentOrder = async (req, res) => {
       key: process.env.RAZORPAY_KEY_ID
     });
   } catch (error) {
-    res.status(500).json({ message: 'Payment error', error: error.message });
+    next(error);
   }
 };
 
-exports.verifyPayment = async (req, res) => {
+exports.verifyPayment = async (req, res, next) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
@@ -90,6 +90,6 @@ exports.verifyPayment = async (req, res) => {
 
     res.json({ message: 'Payment verified successfully', order });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };

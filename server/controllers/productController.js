@@ -54,9 +54,11 @@ const uploadImageFromUrl = async (source, folder = 'klb_products') => {
   const transformedUrl = transformToDirectUrl(source);
   
   try {
-    console.log(`[Cloudinary] Original URL: ${source.substring(0, 50)}...`);
-    if (source !== transformedUrl) {
-      console.log(`[Cloudinary] Transformed URL: ${transformedUrl.substring(0, 50)}...`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Cloudinary] Original URL: ${source.substring(0, 50)}...`);
+      if (source !== transformedUrl) {
+        console.log(`[Cloudinary] Transformed URL: ${transformedUrl.substring(0, 50)}...`);
+      }
     }
 
     const result = await cloudinary.uploader.upload(transformedUrl, {
@@ -64,10 +66,14 @@ const uploadImageFromUrl = async (source, folder = 'klb_products') => {
       resource_type: 'auto',
     });
 
-    console.log(`[Cloudinary] Success: ${result.secure_url}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Cloudinary] Success: ${result.secure_url}`);
+    }
     return result.secure_url;
   } catch (error) {
-    console.error(`[Cloudinary] Failed for: ${transformedUrl.substring(0, 50)}...`, error.message);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`[Cloudinary] Failed for: ${transformedUrl.substring(0, 50)}...`, error.message);
+    }
     // FALLBACK: Return original source so import does not break
     return source;
   }
@@ -119,13 +125,10 @@ const normalizeProductPayload = async (payload = {}, uploaded = { primary: '', a
   // 2. PARALLEL UPLOAD (OPTIMIZED)
   // Ensure we upload every non-Cloudinary link in parallel
   const uploadTasks = [
-    uploadImageFromUrl(imageSource),
     ...imagesSources.map(url => uploadImageFromUrl(url))
   ];
 
-  console.log(`[Normalize] Processing ${uploadTasks.length} upload tasks...`);
   const results = await Promise.all(uploadTasks);
-  console.log(`[Normalize] Upload results received: ${results.filter(Boolean).length} succeeded`);
   
   // 3. FILTER RESULTS
   const [optimizedPrimary, ...optimizedAdditional] = results;
@@ -166,7 +169,7 @@ const getPagination = (query = {}) => {
   };
 };
 
-exports.getProducts = async (req, res) => {
+exports.getProducts = async (req, res, next) => {
   try {
     const { category, search, minPrice, maxPrice, prescriptionOnly, sort } = req.query;
     const filter = {};
@@ -207,21 +210,21 @@ exports.getProducts = async (req, res) => {
       total,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.getProductById = async (req, res) => {
+exports.getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.createProduct = async (req, res) => {
+exports.createProduct = async (req, res, next) => {
   const uploaded = buildUploadedImagePaths(req.files);
 
   try {
@@ -230,11 +233,11 @@ exports.createProduct = async (req, res) => {
     invalidateCache('/api/products');
     res.status(201).json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.updateProduct = async (req, res) => {
+exports.updateProduct = async (req, res, next) => {
   const uploaded = buildUploadedImagePaths(req.files);
 
   try {
@@ -252,11 +255,11 @@ exports.updateProduct = async (req, res) => {
     invalidateCache('/api/products');
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.deleteProduct = async (req, res) => {
+exports.deleteProduct = async (req, res, next) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -264,11 +267,11 @@ exports.deleteProduct = async (req, res) => {
     invalidateCache('/api/products');
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    next(error);
   }
 };
 
-exports.importProducts = async (req, res) => {
+exports.importProducts = async (req, res, next) => {
   try {
     let productList = [];
 
@@ -362,6 +365,6 @@ exports.importProducts = async (req, res) => {
 
     res.status(statusCode).json(summary);
   } catch (error) {
-    res.status(500).json({ message: 'Server error during import', error: error.message });
+    next(error);
   }
 };

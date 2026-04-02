@@ -16,6 +16,9 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { usePrescriptionStore } from '../../store/prescriptionStore';
 import { Prescription } from '../../types';
+import { logger } from '../../utils/logger';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export const AdminPrescriptionsPage: React.FC = () => {
   const { fetchAllPrescriptions, prescriptions, updatePrescriptionStatus } = usePrescriptionStore();
@@ -54,8 +57,10 @@ export const AdminPrescriptionsPage: React.FC = () => {
     try {
       await updatePrescriptionStatus(id, 'approved', 'Admin');
       setSelectedPrescription(null);
+      toast.success('Prescription approved successfully');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to approve prescription');
+      logger.error('Failed to approve prescription');
+      toast.error(getErrorMessage(error, 'Unable to approve prescription. Please check your connection and try again.'));
     }
   };
 
@@ -71,8 +76,10 @@ export const AdminPrescriptionsPage: React.FC = () => {
         setShowRejectModal(false);
         setRejectReason('');
         setSelectedPrescription(null);
+        toast.success('Prescription rejected successfully');
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Unable to reject prescription');
+        logger.error('Failed to reject prescription');
+        toast.error(getErrorMessage(error, 'Unable to reject prescription. Please check your connection and try again.'));
       }
     }
   };

@@ -20,6 +20,8 @@ import { Product, ProductInput } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
 import { buildProductsCsv, parseProductImportFile } from '../../utils/productImportExport';
 import { getPrimaryProductImage, getProductImages } from '../../utils/product';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface ProductFormData {
   name: string;
@@ -33,10 +35,7 @@ interface ProductFormData {
   dosage: string;
 }
 
-interface FeedbackState {
-  type: 'success' | 'error';
-  message: string;
-}
+
 
 const initialFormData: ProductFormData = {
   name: '',
@@ -74,7 +73,6 @@ export const AdminProductsPage: React.FC = () => {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
   useEffect(() => {
     void fetchProducts();
@@ -132,7 +130,6 @@ export const AdminProductsPage: React.FC = () => {
   };
 
   const handleOpenModal = (product?: Product) => {
-    setFeedback(null);
     resetImageSelection();
 
     if (product) {
@@ -188,18 +185,15 @@ export const AdminProductsPage: React.FC = () => {
     try {
       if (editingProduct) {
         await updateProduct(editingProduct.id, productData);
-        setFeedback({ type: 'success', message: 'Product updated successfully.' });
+        toast.success('Product updated successfully.');
       } else {
         await addProduct(productData);
-        setFeedback({ type: 'success', message: 'Product added successfully.' });
+        toast.success('Product added successfully.');
       }
 
       handleCloseModal();
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unable to save product.',
-      });
+      toast.error(getErrorMessage(error, 'Unable to save product.'));
     }
   };
 
@@ -207,12 +201,9 @@ export const AdminProductsPage: React.FC = () => {
     try {
       await deleteProduct(id);
       setDeleteConfirm(null);
-      setFeedback({ type: 'success', message: 'Product deleted successfully.' });
+      toast.success('Product deleted successfully.');
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unable to delete product.',
-      });
+      toast.error(getErrorMessage(error, 'Unable to delete product.'));
     }
   };
 
@@ -220,12 +211,9 @@ export const AdminProductsPage: React.FC = () => {
     try {
       await Promise.all(selectedProducts.map((id) => deleteProduct(id)));
       setSelectedProducts([]);
-      setFeedback({ type: 'success', message: 'Selected products deleted successfully.' });
+      toast.success('Selected products deleted successfully.');
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unable to delete selected products.',
-      });
+      toast.error(getErrorMessage(error, 'Unable to delete selected products.'));
     }
   };
 
@@ -240,7 +228,7 @@ export const AdminProductsPage: React.FC = () => {
     link.click();
     URL.revokeObjectURL(url);
 
-    setFeedback({ type: 'success', message: `Exported ${products.length} products to CSV.` });
+    toast.success(`Exported ${products.length} products to CSV.`);
   };
 
   const handleImportClick = () => {
@@ -260,19 +248,18 @@ export const AdminProductsPage: React.FC = () => {
       const summary = await importProducts(parsedProducts);
       const skippedCount = summary.errors.length;
 
-      setFeedback({
-        type: skippedCount > 0 ? 'error' : 'success',
-        message:
-          `${summary.created} created, ${summary.updated} updated` +
+      const message = `${summary.created} created, ${summary.updated} updated` +
           (skippedCount > 0
             ? `. ${skippedCount} row(s) skipped. ${summary.errors[0]}`
-            : '.'),
-      });
+            : '.');
+      
+      if (skippedCount > 0) {
+        toast.warning(message);
+      } else {
+        toast.success(message);
+      }
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Unable to import products.',
-      });
+      toast.error(getErrorMessage(error, 'Unable to import products.'));
     }
   };
 
@@ -324,17 +311,7 @@ export const AdminProductsPage: React.FC = () => {
         </div>
       </div>
 
-      {feedback && (
-        <div
-          className={`rounded-lg border px-4 py-3 text-sm ${
-            feedback.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-red-200 bg-red-50 text-red-700'
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
+
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <Card>

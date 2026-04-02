@@ -18,6 +18,9 @@ import { Modal } from '../../components/ui/Modal';
 import { useOrderStore } from '../../store/orderStore';
 import { Order } from '../../types';
 import { formatCurrency } from '../../utils/formatters';
+import { logger } from '../../utils/logger';
+import { toast } from 'sonner';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 export const AdminOrdersPage: React.FC = () => {
   const { fetchAllOrders, orders, updateOrderStatus } = useOrderStore();
@@ -86,8 +89,10 @@ export const AdminOrdersPage: React.FC = () => {
     try {
       await updateOrderStatus(orderId, newStatus as Order['orderStatus']);
       setShowStatusDropdown(null);
+      toast.success(`Order status updated to ${newStatus.replace('_', ' ')}`);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to update order status');
+      logger.error('Failed to update order status');
+      toast.error(getErrorMessage(error, 'Unable to update order status. Please check your connection and try again.'));
     }
   };
 
